@@ -1,8 +1,12 @@
 streamlit
 joblib
-numpy
 pandas
 shap
 matplotlib
 xgboost==1.6.0
 scikit-learn==1.7.2
+pip>=24.0
+setuptools>=70.0
+wheel>=0.43
+numpy==1.26.4
+numba>=0.58.0
