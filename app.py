@@ -22,9 +22,7 @@ model = load_model()
 
 # 特征名称与顺序
 feature_names = [
-    "Age", "Height", "BMI", "Self rated health", "Life satisfaction",
-    "Functional dependency", "Memory score", "Executive function score"
-]
+    "Age", "BMI", "Height", "Memory score", "Functional dependency", "Executive function score", "Life satisfaction", "Self rated health"]
 
 # ---------- 侧边栏：用户输入区 ----------
 st.sidebar.title("📋 输入特征")
@@ -56,8 +54,7 @@ memory_score = st.sidebar.number_input("Memory score (z-score)", min_value=-5.0,
 executive_function_score = st.sidebar.number_input("Executive function score (z-score)", min_value=-5.0, max_value=5.0, value=-0.20, step=0.01, format="%.2f")
 
 # 将特征组合成数组
-feature_values = [age, height, bmi, self_rated_health, life_satisfaction,
-                  functional_dependency, memory_score, executive_function_score]
+feature_values = [age, bmi, height, memory_score, functional_dependency, executive_function_score, life_satisfaction, self_rated_health]
 
 # ---------- 主页面：标题与预测触发 ----------
 st.title("🫁 COPD Depression Risk Predictor")
@@ -69,24 +66,26 @@ predict_clicked = st.button("🔍 开始预测", type="primary", use_container_w
 # 初始化 session_state 用于保存预测结果
 if predict_clicked:
     import xgboost as xgb
-    features = np.array([feature_values])
     
-    # --- 改用底层 Booster 进行预测，避免 sklearn 包装器的兼容问题 ---
-    # 获取模型内部的 Booster 对象
+    # 界面输入值，按模型期望顺序重组
+    feature_values_ordered = [
+        age, bmi, height, memory_score, functional_dependency,
+        executive_function_score, life_satisfaction, self_rated_health
+    ]
+    features = np.array([feature_values_ordered])
+    
+    # 模型内部特征名称（训练时使用的）
+    model_feature_names = [
+        "Age", "BMI", "Height", "Memory_score", "Functional_dependency",
+        "Executive_function_score", "Life_satisfaction", "Self_rated_health"
+    ]
+    
     booster = model.get_booster()
-    
-    # 将输入数据转换为 DMatrix
-    dtest = xgb.DMatrix(features, feature_names=feature_names)
-    
-    # 获取原始预测分数（logits）
+    dtest = xgb.DMatrix(features, feature_names=model_feature_names)
     raw_pred = booster.predict(dtest, output_margin=True)[0]
-    
-    # 对于二分类，sigmoid 转换为概率
     proba_high = 1.0 / (1.0 + np.exp(-raw_pred))
     proba_low = 1.0 - proba_high
     predicted_proba = np.array([proba_low, proba_high])
-    
-    # 预测类别（阈值 0.5）
     predicted_class = 1 if proba_high >= 0.5 else 0
     
     # 生成建议文本
@@ -162,7 +161,7 @@ if predict_clicked:
     st.session_state.advice = advice
 
 # ---------- 展示预测结果（如果已预测） ----------
-if st.session_state.prediction_made:
+if st.session_state.get("prediction_made", False):
     col1, col2 = st.columns([2, 3])
     
     with col1:
