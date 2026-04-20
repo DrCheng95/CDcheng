@@ -98,24 +98,40 @@ if predict_clicked:
     
     # 计算 SHAP 值（用于解释预测）
     try:
-        # 修复旧版 XGBoost 模型缺少 feature_types 属性的问题
-        if not hasattr(model, 'feature_types'):
-           model.feature_types = None
-
-        explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=feature_names))
-        # 处理二分类模型 expected_value 为数组的情况
-        if isinstance(explainer.expected_value, (list, np.ndarray)):
-           expected_value = explainer.expected_value[1]
-           if shap_values[0].ndim > 1:
-              shap_vals = shap_values[0][:, 1]
-           else:
-            shap_vals = shap_values[0]
+        # 获取底层 Booster 对象，避免 scikit-learn wrapper 的兼容性问题
+        if hasattr(model, 'get_booster'):
+            booster = model.get_booster()
         else:
-           expected_value = explainer.expected_value
-           shap_vals = shap_values[0]
+            booster = model  # 如果模型本身就是 Booster
 
-        # 生成 SHAP force plot (返回 matplotlib figure)
+        # 创建 explainer 直接使用 Booster
+        explainer = shap.TreeExplainer(booster)
+        
+        # 转换输入数据为 DataFrame 以确保特征名称正确传递
+        input_df = pd.DataFrame([feature_values], columns=feature_names)
+        shap_values = explainer.shap_values(input_df)
+        
+        # 处理 shap_values 形状：对于二分类 XGBoost，shap_values 可能是 (n_samples, n_features, n_classes) 的列表或数组
+        if isinstance(shap_values, list):
+            # 多分类情况，但这里是二分类，通常 shap_values 是单个数组
+            shap_vals = shap_values[0]  # 取第一个类
+        elif shap_values.ndim == 3:
+            # 形状 (n_samples, n_features, n_classes)
+            shap_vals = shap_values[:, :, 1]  # 取正类（高风险）的 SHAP 值
+        else:
+            shap_vals = shap_values  # 已经是二维
+
+        # 如果 shap_vals 是二维但只有一行，取第一行
+        if shap_vals.ndim == 2:
+            shap_vals = shap_vals[0]
+            
+        # 获取期望值
+        expected_value = explainer.expected_value
+        if isinstance(expected_value, (list, np.ndarray)):
+            # 二分类通常有两个 expected_value，取正类的
+            expected_value = expected_value[1] if len(expected_value) > 1 else expected_value[0]
+        
+        # 绘制 SHAP force plot
         plt.figure(figsize=(14, 4))
         shap.plots.force(
             expected_value,
@@ -124,7 +140,7 @@ if predict_clicked:
             matplotlib=True,
             show=False
         )
-        fig = plt.gcf()  # 获取当前图形
+        fig = plt.gcf()
         plt.subplots_adjust(left=0.1, right=0.9, top=0.85, bottom=0.15)
         st.session_state.shap_fig = fig
     except Exception as e:
