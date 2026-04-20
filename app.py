@@ -67,19 +67,27 @@ st.markdown("该工具基于 XGBoost 模型，用于预测 COPD 患者的抑郁�
 predict_clicked = st.button("🔍 开始预测", type="primary", use_container_width=True)
 
 # 初始化 session_state 用于保存预测结果
-if "prediction_made" not in st.session_state:
-    st.session_state.prediction_made = False
-    st.session_state.predicted_class = None
-    st.session_state.probabilities = None
-    st.session_state.advice = ""
-    st.session_state.shap_fig = None
-
-# 当按钮被点击时，执行预测并存储结果
 if predict_clicked:
+    import xgboost as xgb
     features = np.array([feature_values])
-    # 预测类别与概率
-    predicted_class = model.predict(features)[0]
-    predicted_proba = model.predict_proba(features)[0]
+    
+    # --- 改用底层 Booster 进行预测，避免 sklearn 包装器的兼容问题 ---
+    # 获取模型内部的 Booster 对象
+    booster = model.get_booster()
+    
+    # 将输入数据转换为 DMatrix
+    dtest = xgb.DMatrix(features, feature_names=feature_names)
+    
+    # 获取原始预测分数（logits）
+    raw_pred = booster.predict(dtest, output_margin=True)[0]
+    
+    # 对于二分类，sigmoid 转换为概率
+    proba_high = 1.0 / (1.0 + np.exp(-raw_pred))
+    proba_low = 1.0 - proba_high
+    predicted_proba = np.array([proba_low, proba_high])
+    
+    # 预测类别（阈值 0.5）
+    predicted_class = 1 if proba_high >= 0.5 else 0
     
     # 生成建议文本
     proba_percent = predicted_proba[predicted_class] * 100
