@@ -98,14 +98,28 @@ if predict_clicked:
     
     # 计算 SHAP 值（用于解释预测）
     try:
+        # 修复旧版 XGBoost 模型缺少 feature_types 属性的问题
+        if not hasattr(model, 'feature_types'):
+           model.feature_types = None
+
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=feature_names))
-        
+        # 处理二分类模型 expected_value 为数组的情况
+        if isinstance(explainer.expected_value, (list, np.ndarray)):
+           expected_value = explainer.expected_value[1]
+           if shap_values[0].ndim > 1:
+              shap_vals = shap_values[0][:, 1]
+           else:
+            shap_vals = shap_values[0]
+        else:
+           expected_value = explainer.expected_value
+           shap_vals = shap_values[0]
+
         # 生成 SHAP force plot (返回 matplotlib figure)
         plt.figure(figsize=(14, 4))
         shap.plots.force(
-            explainer.expected_value,
-            shap_values[0],
+            expected_value,
+            shap_vals,
             feature_names=feature_names,
             matplotlib=True,
             show=False
