@@ -8,7 +8,7 @@ import xgboost as xgb
 
 # ---------- 页面配置 ----------
 st.set_page_config(
-    page_title="COPD 抑郁风险预测器",
+    page_title="COPD Depression Risk Predictor",
     page_icon="🫁",
     layout="wide"
 )
@@ -45,8 +45,8 @@ if "prediction_made" not in st.session_state:
     st.session_state.shap_fig = None
 
 # ---------- 侧边栏：用户输入区 ----------
-st.sidebar.title("📋 输入特征")
-st.sidebar.markdown("请填写以下信息：")
+st.sidebar.title("📋 Input features")
+st.sidebar.markdown("Please provide the following information:")
 
 age = st.sidebar.number_input("Age", min_value=45, max_value=85, value=60, step=1)
 bmi = st.sidebar.number_input("BMI", min_value=10.0, max_value=60.0, value=22.0, step=0.1, format="%.1f")
@@ -71,10 +71,10 @@ self_rated_health = st.sidebar.selectbox(
 
 # ---------- 主页面 ----------
 st.title("🫁 COPD Depression Risk Predictor")
-st.markdown("该工具基于 XGBoost 模型，用于预测 COPD 患者的抑郁风险。请在左侧输入特征后点击下方按钮。")
+st.markdown("This XGBoost-based tool predicts depression risk in COPD patients. Enter features on the left and click below.")
 
 # 预测按钮
-predict_clicked = st.button("🔍 开始预测", type="primary", use_container_width=True)
+predict_clicked = st.button("🔍 Start Prediction", type="primary", use_container_width=True)
 
 if predict_clicked:
     # --- 1. 按模型训练顺序组装特征 ---
@@ -102,15 +102,15 @@ if predict_clicked:
     proba_percent = predicted_proba[predicted_class] * 100
     if predicted_class == 1:
         advice = (
-            f"根据模型预测，您属于**高风险**人群（抑郁风险）。\n"
-            f"预测概率为 **{proba_percent:.1f}%**。\n\n"
-            "建议您及时咨询专业医疗人员，进行进一步评估和干预。"
+            f"Based on the model, you are in the **high risk** group for depression.\n"
+            f"The predicted probability is **{proba_percent:.1f}%**。\n\n"
+            "Consult a healthcare professional promptly for further assessment and intervention."
         )
     else:
         advice = (
-            f"根据模型预测，您属于**低风险**人群。\n"
-            f"预测概率为 **{proba_percent:.1f}%**。\n\n"
-            "请继续保持健康的生活方式，定期复查。"
+            f"Based on the model, you are in the **low risk** group.\n"
+            f"The predicted probability is **{proba_percent:.1f}%**。\n\n"
+            "Please maintain a healthy lifestyle and undergo regular follow-ups."
         )
     
     # --- 4. 计算 SHAP 值（用于解释预测）---
@@ -145,7 +145,7 @@ if predict_clicked:
         plt.subplots_adjust(left=0.1, right=0.9, top=0.85, bottom=0.15)
         st.session_state.shap_fig = fig
     except Exception as e:
-        st.warning(f"SHAP 可视化生成失败，但预测结果仍有效。错误信息：{e}")
+        st.warning(f"SHAP visualization failed, but the prediction remains valid. Error：{e}")
         st.session_state.shap_fig = None
     
     # --- 5. 保存结果到 session_state ---
@@ -159,29 +159,29 @@ if st.session_state.get("prediction_made", False):
     col1, col2 = st.columns([2, 3])
     
     with col1:
-        st.subheader("📊 预测结果")
-        class_label = "高风险" if st.session_state.get("predicted_class") == 1 else "低风险"
-        st.metric("风险类别", class_label)
+        st.subheader("📊 Prediction Results")
+        class_label = "High Risk" if st.session_state.get("predicted_class") == 1 else "Low Risk"
+        st.metric("Risk Category", class_label)
         
         proba = st.session_state.get("probabilities")
         if proba is not None:
             proba_df = pd.DataFrame({
-                "类别": ["低风险 (0)", "高风险 (1)"],
-                "概率": proba
+                "Category": ["low risk (0)", "high risk (1)"],
+                "Probability": proba
             })
             st.dataframe(proba_df, use_container_width=True)
-            st.progress(float(proba[1]), text=f"高风险概率: {proba[1]*100:.1f}%")
+            st.progress(float(proba[1]), text=f"High-Risk Probability: {proba[1]*100:.1f}%")
         
-        st.subheader("💡 建议")
+        st.subheader("💡 Recommendations")
         st.info(st.session_state.get("advice", ""))
     
     with col2:
-        st.subheader("🔍 特征重要性解释 (SHAP)")
+        st.subheader("🔍 SHapley Additive exPlanations (SHAP)")
         fig = st.session_state.get("shap_fig")
         if fig is not None:
             st.pyplot(fig, use_container_width=True)
-            st.caption("上图展示了每个特征对本次预测的贡献方向（红色：推高风险，蓝色：降低风险）")
+            st.caption("The figure above shows each feature's contribution direction to this prediction (red: increases risk; blue: decreases risk)")
         else:
-            st.info("SHAP 可视化暂时无法显示。")
+            st.info("SHAP visualization is temporarily unavailable.")
 else:
-    st.info("👈 请在左侧填写特征信息，然后点击「开始预测」按钮。")
+    st.info("👈 Enter features on the left and click "Start Prediction.")
