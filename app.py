@@ -184,4 +184,4 @@ if st.session_state.get("prediction_made", False):
         else:
             st.info("SHAP visualization is temporarily unavailable.")
 else:
-    st.info("👈 Enter features on the left and click "Start Prediction.")
+    st.info("👈 Enter features on the left and click "Start Prediction")
